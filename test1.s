@@ -53,7 +53,7 @@ coordToScrAddr:
 ;; DE is src
 ;; HL is dest
 blitChar:
-  ld b, $20 ; loop counter
+  ld b, $10 ; loop counter
 blitChar_nxtr:
   ld a, (de)
   ld (hl), a
