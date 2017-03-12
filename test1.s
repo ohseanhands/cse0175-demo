@@ -1,59 +1,157 @@
 	org 32768
 
+; define constants
+map_width: defb 15
+map_height: defb 11
+
+
 start:
 	; call setupInterrupt
+  xor a         ; Set a to 0
   ld a, 2
-  out ($fe), a
-  call callback
+  out ($fe), a  ; set border color
+  call 3503     ; Clear screen routine in ROM
+  call callback ; Start loop
 
 callback:
-  ;ld b, 5
-  ;ld c, 5
+  ;ld b, 0
+  ;ld c, 0
   ;ld de, wall
-  ;call blitTile
-  ;ld b, 7
-  ;ld c, 9
-  ;ld de, wall
-  ;call blitTile
-  ld b, 0
-  ld c, 0
-  call coordToScrAddr
-  ld de, wall
-  call blitChar
-  ld b, 1
-  ld c, 1
-  call coordToScrAddr
-  ld de, wall
-  call blitChar
-  ld b, 2
-  ld c, 2
-  call coordToScrAddr
-  ld de, wall
-  call blitChar
+  ;call drawSprite
+  ;ld b, 2
+  ;ld c, 2
+  ;call drawSprite
+  call drawMap
   jp callback
 
-;; Inputs: B - line (0-23) | C - col (0-32)
-;; Outpus: HL - address of character in screen mem
-coordToScrAddr:
-  ; high address
-  ld a, b
-  and $f8
-  add a, $40
-  ld h, a
 
-  ; low address
-  ld a, b
-  and $7
-  rrca
-  rrca
-  add a, c
-  ld l, a
+drawMap:
+  ld de, map
+  ld b, 0
+  ld c, 0
+drawMap_row:
+  nop
+drawMap_col:
+  push bc
+  ld hl, spriteList
+  ld a, (de)
+  push de
+  add a, 1
+  sub a, 1
+  jp z, drawMap_spriteListCounterLoop_end
+drawMap_spriteListCounterLoop:
+  inc hl
+  sub a, 1
+  jp nz, drawMap_spriteListCounterLoop
+drawMap_spriteListCounterLoop_end:
+  ld d, (hl)
+  inc hl
+  ld e, (hl)
+  rl b
+  rl c
+; Just for testing...
+  call drawSprite
+  pop de
+  inc de
+  pop bc
+  inc b
+  ld a, (map_width) ; map width
+  cp b
+  jp nz, drawMap_col
+  ld b, 0
+  inc c
+  ld a, (map_height) ; map height
+  cp c
+  jp nz, drawMap_row
   ret
+
+; On Entry: B reg = X coord, C reg = Y coord, DE reg = sprite address
+drawSprite:
+  ; multiply coords by 8 to get pixel locations
+  inc b
+  inc c
+  push BC
+  push DE
+  ld ixh, d
+  ld ixl, e
+  ld a, b
+  rla
+  rla
+  rla
+  ld b, a
+  ld a, c
+  rla
+  rla
+  rla
+  ld c, a
+  push bc
+  call coordToScrAddr
+  call blitChar
+  pop bc
+  ld a, b
+  add a, 8
+  ld b, a
+  push bc
+  call coordToScrAddr
+  call blitChar
+  pop bc
+  ld a, b
+  sub a, 8
+  ld b, a
+  ld a, c
+  add a, 8
+  ld c, a
+  push bc
+  call coordToScrAddr
+  call blitChar
+  pop bc
+  ld a, b
+  add a, 8
+  ld b, a
+  call coordToScrAddr
+  call blitChar
+
+  pop DE
+  pop BC
+  ret
+
+coordToScrAddr:
+;On Entry: B reg = X coord,  C reg = Y coord
+;On Exit: HL = screen address, A = pixel position
+; Calculate the high byte of the screen addressand store in H reg.
+	ld a,c
+	and $7
+	ld h,a
+	ld a,c
+	rra
+	rra
+	rra
+	and $18
+	or h
+	or $40
+	ld h,a
+; Calculate the low byte of the screen address and store in L reg.
+	ld a,b
+	rra
+	rra
+	rra
+	and $1f
+	ld l,a
+	ld a,c
+	rla
+	rla
+	and $e0
+	or l
+	ld l,a
+; Calculate pixel postion and store in A reg.
+	ld a,b
+	and $7
+	ret
 
 ;; DE is src
 ;; HL is dest
 blitChar:
-  ld b, $10 ; loop counter
+  ld b, $8 ; loop counter
 blitChar_nxtr:
   ld a, (de)
   ld (hl), a
@@ -62,49 +160,45 @@ blitChar_nxtr:
   djnz blitChar_nxtr
   ret
 
-;; Inputs: B contains line, C contains col, DE contains ptr to tile data
-blitTile:
-  call coordToScrAddr
-  push hl
-  inc b
-  call coordToScrAddr
-  push hl
-  ld b, $2    ; set counter
-blitTile_row:
-  pop hl
-blitTile_col:
-  push bc     ; save counter
-  push hl
-  call blitChar
-  pop hl
-  inc hl
-  push hl
-  call blitChar
-  pop hl
-  pop bc      ; restore counter
-  djnz blitTile_row
-  ret
+;; Define sprites (SID = Sprite ID)
+;; If a sprite has ID of 0, it should be background/empty
+spriteList:
+  defw empty, wall, checker
+  
+; SID 0 - empty
+empty:
+  defb 0, 0, 0, 0, 0, 0, 0, 0
+  defb 0, 0, 0, 0, 0, 0, 0, 0
+  defb 0, 0, 0, 0, 0, 0, 0, 0
+  defb 0, 0, 0, 0, 0, 0, 0, 0
 
-drawWalls:
-  ld b, $0
-  ld c, $0
-  call coordToScrAddr
-  ld b, 10
-drawWalls_topRow:
-  ld de, wall
-  push bc
-  push hl
-  call blitChar
-  pop hl
-  pop bc
-  inc hl
-  djnz drawWalls_topRow
-  ret
-
-
-;; Define sprites
+; SID 1 - wall
 wall:
-  defb $FF, $FF, $CC, $CC, $CC, $CC, $CC, $CC, $CC, $CC, $CC, $CC, $CC, $CC, $FF, $FF
-  defb $FF, $FF, $33, $33, $33, $33, $33, $33, $33, $33, $33, $33, $33, $33, $FF, $FF
-  defb $FF, $FF, $CC, $CC, $CC, $CC, $CC, $CC, $CC, $CC, $CC, $CC, $CC, $CC, $FF, $FF
-  defb $FF, $FF, $33, $33, $33, $33, $33, $33, $33, $33, $33, $33, $33, $33, $FF, $FF
+  defb $7F, $FF, $CC, $CC, $CC, $CC, $CC, $CC
+  defb $FE, $FF, $33, $33, $33, $33, $33, $33
+  defb $FF, $CC, $CC, $CC, $CC, $CC, $FF, $7F
+  defb $FF, $33, $33, $33, $33, $33, $FF, $FE
+
+; SID 2 - checker
+checker:
+  defb $55, $AA, $55, $AA, $55, $AA, $55, $AA
+  defb $55, $AA, $55, $AA, $55, $AA, $55, $AA
+  defb $55, $AA, $55, $AA, $55, $AA, $55, $AA
+  defb $55, $AA, $55, $AA, $55, $AA, $55, $AA
+
+brick:
+  defb 7
+
+map:
+  defb 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+  defb 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
+  defb 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1
+  defb 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
+  defb 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1
+  defb 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
+  defb 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1
+  defb 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
+  defb 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1
+  defb 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
+  defb 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+
