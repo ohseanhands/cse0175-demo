@@ -163,7 +163,7 @@ blitChar_nxtr:
 ;; Define sprites (SID = Sprite ID)
 ;; If a sprite has ID of 0, it should be background/empty
 spriteList:
-  defw empty, wall, checker
+  defw empty, wall, checker, brick
   
 ; SID 0 - empty
 empty:
@@ -174,10 +174,10 @@ empty:
 
 ; SID 1 - wall
 wall:
-  defb $7F, $FF, $CC, $CC, $CC, $CC, $CC, $CC
-  defb $FE, $FF, $33, $33, $33, $33, $33, $33
-  defb $FF, $CC, $CC, $CC, $CC, $CC, $FF, $7F
-  defb $FF, $33, $33, $33, $33, $33, $FF, $FE
+  defb $7F, $FF, $C0, $C0, $C0, $C0, $C0, $C0
+  defb $FE, $FF, $03, $03, $03, $03, $03, $03
+  defb $C0, $C0, $C0, $C0, $C0, $C0, $FF, $7F
+  defb $03, $03, $03, $03, $03, $03, $FF, $FE
 
 ; SID 2 - checker
 checker:
@@ -187,15 +187,18 @@ checker:
   defb $55, $AA, $55, $AA, $55, $AA, $55, $AA
 
 brick:
-  defb 7
+  defb $FF, $CF, $CF, $CF, $80, $FC, $FC, $FF
+  defb $FF, $FF, $FF, $FF, $01, $FF, $FF, $FF
+  defb $FF, $FF, $FF, $FF, $80, $FF, $FF, $FF
+  defb $FF, $CF, $CF, $CF, $01, $FC, $FC, $FC
 
 map:
   defb 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
-  defb 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
-  defb 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1
-  defb 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
-  defb 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1
-  defb 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
+  defb 1, 0, 0, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 1
+  defb 1, 0, 1, 2, 1, 3, 1, 0, 1, 0, 1, 0, 1, 0, 1
+  defb 1, 2, 2, 2, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 1
+  defb 1, 0, 1, 0, 1, 3, 1, 0, 1, 0, 1, 0, 1, 0, 1
+  defb 1, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 1
   defb 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1
   defb 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
   defb 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1
