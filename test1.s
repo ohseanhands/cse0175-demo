@@ -41,12 +41,14 @@ drawMap_col:
   jp z, drawMap_spriteListCounterLoop_end
 drawMap_spriteListCounterLoop:
   inc hl
+  inc hl
   sub a, 1
   jp nz, drawMap_spriteListCounterLoop
 drawMap_spriteListCounterLoop_end:
-  ld d, (hl)
-  inc hl
+; Note, addresses of sprites are opposite endian
   ld e, (hl)
+  inc hl
+  ld d, (hl)
   rl b
   rl c
 ; Just for testing...
@@ -187,21 +189,26 @@ checker:
   defb $55, $AA, $55, $AA, $55, $AA, $55, $AA
 
 brick:
-  defb $FF, $CF, $CF, $CF, $80, $FC, $FC, $FF
-  defb $FF, $FF, $FF, $FF, $01, $FF, $FF, $FF
-  defb $FF, $FF, $FF, $FF, $80, $FF, $FF, $FF
-  defb $FF, $CF, $CF, $CF, $01, $FC, $FC, $FC
+  defb $00, $67, $67, $67, $67, $67, $67, $00
+  defb $00, $FE, $FE, $FE, $FE, $FE, $FE, $00
+  defb $00, $7F, $7F, $7F, $7F, $7F, $7F, $00
+  defb $00, $E6, $E6, $E6, $E6, $E6, $E6, $00
+
+  defb $00, $4F, $4F, $4F, $00, $7C, $7C, $7F
+  defb $00, $FE, $FE, $FE, $00, $FE, $FE, $FE
+  defb $7F, $7F, $7F, $7F, $00, $7F, $7F, $00
+  defb $FE, $CE, $CE, $CE, $00, $FC, $FC, $00
 
 map:
   defb 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
-  defb 1, 0, 0, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 1
-  defb 1, 0, 1, 2, 1, 3, 1, 0, 1, 0, 1, 0, 1, 0, 1
-  defb 1, 2, 2, 2, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 1
-  defb 1, 0, 1, 0, 1, 3, 1, 0, 1, 0, 1, 0, 1, 0, 1
-  defb 1, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 1
-  defb 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1
-  defb 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
-  defb 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1
-  defb 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
+  defb 1, 0, 0, 3, 3, 3, 0, 3, 3, 3, 3, 3, 0, 0, 1
+  defb 1, 0, 1, 3, 1, 3, 1, 3, 1, 0, 1, 3, 1, 0, 1
+  defb 1, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 3, 3, 0, 1
+  defb 1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 1
+  defb 1, 3, 3, 3, 3, 3, 0, 0, 3, 3, 0, 3, 3, 3, 1
+  defb 1, 0, 1, 3, 1, 3, 1, 0, 1, 3, 1, 3, 1, 3, 1
+  defb 1, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1
+  defb 1, 3, 1, 3, 1, 0, 1, 0, 1, 3, 1, 3, 1, 0, 1
+  defb 1, 3, 3, 3, 0, 0, 3, 3, 3, 3, 3, 3, 0, 0, 1
   defb 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
 
