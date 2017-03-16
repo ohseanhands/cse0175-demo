@@ -3,41 +3,55 @@
 ; define constants
 map_width: defb 15
 map_height: defb 11
+hasDrawnMap: defb 0
 
+player1Coords: defw 0
+
+brdrColor: defb 0
 
 start:
 	; call setupInterrupt
-  xor a         ; Set a to 0
+  di
   ld a, 2
   out ($fe), a  ; set border color
   call 3503     ; Clear screen routine in ROM
-  call callback ; Start loop
+
+  jp callback ; Start loop
 
 callback:
-  ;ld b, 0
-  ;ld c, 0
-  ;ld de, wall
-  ;call drawSprite
-  ;ld b, 2
-  ;ld c, 2
-  ;call drawSprite
-  call drawMap
+  ld a, (hasDrawnMap)
+  call z, drawMap
+
+  call newBorder
+
   jp callback
 
+newBorder:
+  ld a, (brdrColor)
+  out ($fe), a
+  inc a
+  and $07 ; only affect border color bits
+  ld (brdrColor), a
+  ret
+
+initLevel:
+  call drawMap
+
+drawUpdates:
+  ret ; Not implemented!
+  ld hl, updateList
 
 drawMap:
   ld de, map
   ld b, 0
   ld c, 0
 drawMap_row:
-  nop
 drawMap_col:
   push bc
   ld hl, spriteList
   ld a, (de)
   push de
-  add a, 1
-  sub a, 1
+  or a
   jp z, drawMap_spriteListCounterLoop_end
 drawMap_spriteListCounterLoop:
   inc hl
@@ -65,6 +79,8 @@ drawMap_spriteListCounterLoop_end:
   ld a, (map_height) ; map height
   cp c
   jp nz, drawMap_row
+  ld a, 1
+  ld (hasDrawnMap), a
   ret
 
 ; On Entry: B reg = X coord, C reg = Y coord, DE reg = sprite address
@@ -90,6 +106,7 @@ drawSprite:
   call coordToScrAddr
   call blitChar
   pop bc
+  call setAttribute
   ld a, b
   add a, 8
   ld b, a
@@ -97,6 +114,7 @@ drawSprite:
   call coordToScrAddr
   call blitChar
   pop bc
+  call setAttribute
   ld a, b
   sub a, 8
   ld b, a
@@ -107,11 +125,15 @@ drawSprite:
   call coordToScrAddr
   call blitChar
   pop bc
+  call setAttribute
   ld a, b
   add a, 8
   ld b, a
+  push bc
   call coordToScrAddr
   call blitChar
+  pop bc
+  call setAttribute
 
   pop DE
   pop BC
@@ -162,6 +184,21 @@ blitChar_nxtr:
   djnz blitChar_nxtr
   ret
 
+;; DE is src ptr
+;; B is X coord
+;; C is Y coord
+setAttribute:
+  ret ; NOT IMPLEMENTED!
+  ld hl, $5800
+  ld a, c
+  rla
+  rla
+  rla
+  rla
+  rla
+
+  ret
+
 ;; Define sprites (SID = Sprite ID)
 ;; If a sprite has ID of 0, it should be background/empty
 spriteList:
@@ -194,11 +231,6 @@ brick:
   defb $00, $7F, $7F, $7F, $7F, $7F, $7F, $00
   defb $00, $E6, $E6, $E6, $E6, $E6, $E6, $00
 
-  defb $00, $4F, $4F, $4F, $00, $7C, $7C, $7F
-  defb $00, $FE, $FE, $FE, $00, $FE, $FE, $FE
-  defb $7F, $7F, $7F, $7F, $00, $7F, $7F, $00
-  defb $FE, $CE, $CE, $CE, $00, $FC, $FC, $00
-
 map:
   defb 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
   defb 1, 0, 0, 3, 3, 3, 0, 3, 3, 3, 3, 3, 0, 0, 1
@@ -212,3 +244,14 @@ map:
   defb 1, 3, 3, 3, 0, 0, 3, 3, 3, 3, 3, 3, 0, 0, 1
   defb 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
 
+updateList:
+  defb 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  defb 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  defb 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  defb 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  defb 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  defb 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  defb 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  defb 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  defb 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  defb 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
