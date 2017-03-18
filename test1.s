@@ -15,7 +15,7 @@ start:
   ld a, 2
   out ($fe), a  ; set border color
   call 3503     ; Clear screen routine in ROM
-
+  
   jp callback ; Start loop
 
 callback:
@@ -36,6 +36,7 @@ newBorder:
 
 initLevel:
   call drawMap
+  ret
 
 drawUpdates:
   ret ; Not implemented!
@@ -90,8 +91,6 @@ drawSprite:
   inc c
   push BC
   push DE
-  ld ixh, d
-  ld ixl, e
   ld a, b
   rla
   rla
@@ -188,15 +187,41 @@ blitChar_nxtr:
 ;; B is X coord
 ;; C is Y coord
 setAttribute:
-  ret ; NOT IMPLEMENTED!
-  ld hl, $5800
+  ; ret ; NOT IMPLEMENTED!
+  push bc
+  push de
+  ; Convert from x8 in screen coords to character coords
   ld a, c
-  rla
-  rla
-  rla
-  rla
-  rla
+  rra
+  rra
+  rra
+  ld l, a
+  ld a, b
+  rra
+  rra
+  rra
+  ld b, a
 
+  ; Multiply Y coord by 32 (num bytes per line)
+  ld h, 0
+  add hl, hl
+  add hl, hl
+  add hl, hl
+  add hl, hl
+  add hl, hl
+
+  ; Save attribute and attribute pointer
+  ld a, (de)
+
+  ld d, 0
+  ld e, b
+  add hl, de
+  ld de, $5800
+  add hl, de
+  ld (hl), a
+  pop de
+  pop bc
+  inc de
   ret
 
 ;; Define sprites (SID = Sprite ID)
@@ -206,30 +231,30 @@ spriteList:
   
 ; SID 0 - empty
 empty:
-  defb 0, 0, 0, 0, 0, 0, 0, 0
-  defb 0, 0, 0, 0, 0, 0, 0, 0
-  defb 0, 0, 0, 0, 0, 0, 0, 0
-  defb 0, 0, 0, 0, 0, 0, 0, 0
+  defb 0, 0, 0, 0, 0, 0, 0, 0, $47
+  defb 0, 0, 0, 0, 0, 0, 0, 0, $47
+  defb 0, 0, 0, 0, 0, 0, 0, 0, $47
+  defb 0, 0, 0, 0, 0, 0, 0, 0, $47
 
 ; SID 1 - wall
 wall:
-  defb $7F, $FF, $C0, $C0, $C0, $C0, $C0, $C0
-  defb $FE, $FF, $03, $03, $03, $03, $03, $03
-  defb $C0, $C0, $C0, $C0, $C0, $C0, $FF, $7F
-  defb $03, $03, $03, $03, $03, $03, $FF, $FE
+  defb $7F, $FF, $C0, $C0, $C0, $C0, $C0, $C0, $47
+  defb $FE, $FF, $03, $03, $03, $03, $03, $03, $47
+  defb $C0, $C0, $C0, $C0, $C0, $C0, $FF, $7F, $47
+  defb $03, $03, $03, $03, $03, $03, $FF, $FE, $47
 
 ; SID 2 - checker
 checker:
-  defb $55, $AA, $55, $AA, $55, $AA, $55, $AA
-  defb $55, $AA, $55, $AA, $55, $AA, $55, $AA
-  defb $55, $AA, $55, $AA, $55, $AA, $55, $AA
-  defb $55, $AA, $55, $AA, $55, $AA, $55, $AA
+  defb $55, $AA, $55, $AA, $55, $AA, $55, $AA, $47
+  defb $55, $AA, $55, $AA, $55, $AA, $55, $AA, $47
+  defb $55, $AA, $55, $AA, $55, $AA, $55, $AA, $47
+  defb $55, $AA, $55, $AA, $55, $AA, $55, $AA, $47
 
 brick:
-  defb $00, $67, $67, $67, $67, $67, $67, $00
-  defb $00, $FE, $FE, $FE, $FE, $FE, $FE, $00
-  defb $00, $7F, $7F, $7F, $7F, $7F, $7F, $00
-  defb $00, $E6, $E6, $E6, $E6, $E6, $E6, $00
+  defb $00, $67, $67, $67, $67, $67, $67, $00, $42
+  defb $00, $FE, $FE, $FE, $FE, $FE, $FE, $00, $42
+  defb $00, $7F, $7F, $7F, $7F, $7F, $7F, $00, $42
+  defb $00, $E6, $E6, $E6, $E6, $E6, $E6, $00, $42
 
 map:
   defb 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
@@ -255,3 +280,133 @@ updateList:
   defb 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
   defb 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
   defb 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+
+lineLookup:
+DEFW 24576	;y=0
+DEFW 24832	;y=1
+DEFW 25088	;y=2
+DEFW 25344	;y=3
+DEFW 25600	;y=4
+DEFW 25856	;y=5
+DEFW 26112	;y=6
+DEFW 26368	;y=7
+DEFW 24608	;y=8
+DEFW 24864	;y=9
+DEFW 25120	;y=10
+DEFW 25376	;y=11
+DEFW 25632	;y=12
+DEFW 25888	;y=13
+DEFW 26144	;y=14
+DEFW 26400	;y=15
+DEFW 24640	;y=16
+DEFW 24896	;y=17
+DEFW 25152	;y=18
+DEFW 25408	;y=19
+DEFW 25664	;y=20
+DEFW 25920	;y=21
+DEFW 26176	;y=22
+DEFW 26432	;y=23
+DEFW 24672	;y=24
+DEFW 24928	;y=25
+DEFW 25184	;y=26
+DEFW 25440	;y=27
+DEFW 25696	;y=28
+DEFW 25952	;y=29
+DEFW 26208	;y=30
+DEFW 26464	;y=31
+DEFW 24704	;y=32
+DEFW 24960	;y=33
+DEFW 25216	;y=34
+DEFW 25472	;y=35
+DEFW 25728	;y=36
+DEFW 25984	;y=37
+DEFW 26240	;y=38
+DEFW 26496	;y=39
+DEFW 24736	;y=40
+DEFW 24992	;y=41
+DEFW 25248	;y=42
+DEFW 25504	;y=43
+DEFW 25760	;y=44
+DEFW 26016	;y=45
+DEFW 26272	;y=46
+DEFW 26528	;y=47
+DEFW 24768	;y=48
+DEFW 25024	;y=49
+DEFW 25280	;y=50
+DEFW 25536	;y=51
+DEFW 25792	;y=52
+DEFW 26048	;y=53
+DEFW 26304	;y=54
+DEFW 26560	;y=55
+DEFW 24800	;y=56
+DEFW 25056	;y=57
+DEFW 25312	;y=58
+DEFW 25568	;y=59
+DEFW 25824	;y=60
+DEFW 26080	;y=61
+DEFW 26336	;y=62
+DEFW 26592	;y=63
+DEFW 26624	;y=64
+DEFW 26880	;y=65
+DEFW 27136	;y=66
+DEFW 27392	;y=67
+DEFW 27648	;y=68
+DEFW 27904	;y=69
+DEFW 28160	;y=70
+DEFW 28416	;y=71
+DEFW 26656	;y=72
+DEFW 26912	;y=73
+DEFW 27168	;y=74
+DEFW 27424	;y=75
+DEFW 27680	;y=76
+DEFW 27936	;y=77
+DEFW 28192	;y=78
+DEFW 28448	;y=79
+DEFW 26688	;y=80
+DEFW 26944	;y=81
+DEFW 27200	;y=82
+DEFW 27456	;y=83
+DEFW 27712	;y=84
+DEFW 27968	;y=85
+DEFW 28224	;y=86
+DEFW 28480	;y=87
+DEFW 26720	;y=88
+DEFW 26976	;y=89
+DEFW 27232	;y=90
+DEFW 27488	;y=91
+DEFW 27744	;y=92
+DEFW 28000	;y=93
+DEFW 28256	;y=94
+DEFW 28512	;y=95
+DEFW 26752	;y=96
+DEFW 27008	;y=97
+DEFW 27264	;y=98
+DEFW 27520	;y=99
+DEFW 27776	;y=100
+DEFW 28032	;y=101
+DEFW 28288	;y=102
+DEFW 28544	;y=103
+DEFW 26784	;y=104
+DEFW 27040	;y=105
+DEFW 27296	;y=106
+DEFW 27552	;y=107
+DEFW 27808	;y=108
+DEFW 28064	;y=109
+DEFW 28320	;y=110
+DEFW 28576	;y=111
+DEFW 26816	;y=112
+DEFW 27072	;y=113
+DEFW 27328	;y=114
+DEFW 27584	;y=115
+DEFW 27840	;y=116
+DEFW 28096	;y=117
+DEFW 28352	;y=118
+DEFW 28608	;y=119
+DEFW 26848	;y=120
+DEFW 27104	;y=121
+DEFW 27360	;y=122
+DEFW 27616	;y=123
+DEFW 27872	;y=124
+DEFW 28128	;y=125
+DEFW 28384	;y=126
+DEFW 28640	;y=127
