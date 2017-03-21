@@ -116,6 +116,11 @@ player1KeysReady: defb 0
 player1AttrOffset: defb 0
 player1Attr: defb $41, $43
 
+
+player2Coords: defb 200, 152
+player2KeyMap: defb 0
+player2KeysReady: defb 0
+
 brdrColor: defb 0
 
 frameCounter: defb 0
@@ -146,12 +151,23 @@ doFrame:
   or a
   call z, drawMap
 
-  call erasePlayer1
-  ;call pollKeyboard
+  ld hl, player1Coords
+  ld de, empty
+  call drawPlayer
+
+  ld hl, player2Coords
+  ld de, empty
+  call drawPlayer
+  
   call gameLogic
 
-  call drawPlayer1
+  ld hl, player1Coords
+  ld de, bob
+  call drawPlayer
 
+  ld hl, player2Coords
+  ld de, greg
+  call drawPlayer
 
   ld a, (frameCounter)
   inc a
@@ -165,11 +181,7 @@ resetFrameCounter:
 
 
 pollKeyboard:
-  ;call isEnterKeyPressed
-  ;or $1E
-  ;ld (player1KeyMap), a
-  ;ret
-  ;; TODO implement actual functionality
+  ; Get player 1's keys
   ld a, $FB
   in a, ($fe)
   and $03 ; Get Q and W keys
@@ -182,6 +194,20 @@ pollKeyboard:
   and $07
   or b
   ld (player1KeyMap), a
+
+  ; Get player 2's keys
+  ld a, $DF
+  in a, ($fe)
+  and $0C
+  rla
+  ld b, a
+  ld a, $BF
+  in a, ($fe)
+  and $0E
+  rra
+  or b
+  ld (player2KeyMap), a
+
   ret
 
 isEnterKeyPressed:
@@ -219,27 +245,37 @@ gameLogic_p1Keys:
   rr b
   rr b
   rr b
+  rr b
   rr c
   rr c
   rr c
+  rr c
+
   
   ld a, (player1KeyMap)
   ld e, a
   bit 0, e
-  call z, player1MoveLeft
-
+  call z, playerMoveLeft
   bit 1, e
-  call z, player1MoveDown
-
+  call z, playerMoveDown
   bit 2, e
-  call z, player1MoveRight
-
+  call z, playerMoveRight
   bit 3, e
-  call z, player1Bomb
-
+  call z, playerBomb
   bit 4, e
-  call z, player1MoveUp
+  call z, playerMoveUp
 
+
+  rl b
+  rl c
+  ld a, b
+  or 1
+  ld b, a
+
+  ld a, c
+  or 1
+  ld c, a
+  
   rl b
   rl b
   rl b
@@ -257,8 +293,67 @@ gameLogic_postp1Keys:
   ld (player1KeysReady), a
 
 gameLogic_p2Keys:
+  ld a, (player2KeysReady)
+  ; out ($fe), a
+  or a
+  jp nz, gameLogic_postp2Keys
+
+  ld hl, player2Coords
+  ld b, (hl)
+  inc hl
+  ld c, (hl)
+
+  rr b
+  rr b
+  rr b
+  rr b
+  rr c
+  rr c
+  rr c
+  rr c
+
+  
+  ld a, (player2KeyMap)
+  ld e, a
+  bit 0, e
+  call z, playerMoveRight
+  bit 1, e
+  call z, playerMoveDown
+  bit 2, e
+  call z, playerMoveLeft
+  bit 3, e
+  call z, playerMoveUp
+  bit 4, e
+  call z, playerBomb
 
 
+  rl b
+  rl c
+  ld a, b
+  or 1
+  ld b, a
+
+  ld a, c
+  or 1
+  ld c, a
+  
+  rl b
+  rl b
+  rl b
+  rl c
+  rl c
+  rl c
+
+  ld (hl), c
+  dec hl
+  ld (hl), b
+
+
+gameLogic_postp2Keys:
+  ld a, (player2KeyMap)
+  xor $1F
+  ld (player2KeysReady), a
+ 
 gameLogic_postKeys:
 
 gameLogic_doneAnim:
@@ -271,92 +366,72 @@ gameLogic_keyboardState: defb 0
 
 ;; END GAME LOGIC FUNCTION
 
-player1MoveRight:
+playerMoveRight:
   ld a, b
-  add 2
+  add 1
+  ld b, a
+  call getSpriteTypeAtPosition
+  or a
+  ret z ; if a is zero, the it is an empty space
+
+  ld a, b
+  sub 1
   ld b, a
   ret
 
-player1MoveLeft:
+playerMoveLeft:
   ld a, b
-  sub 2
+  sub 1
+  ld b, a
+  call getSpriteTypeAtPosition
+  or a
+  ret z ; if a is zero, the it is an empty space
+
+  ld a, b
+  add 1
   ld b, a
   ret
 
-player1MoveUp:
+playerMoveUp:
   ld a, c
-  sub 2
+  sub 1
+  ld c, a
+  call getSpriteTypeAtPosition
+  or a
+  ret z
+
+  ld a, c
+  add 1
   ld c, a
   ret
 
-player1MoveDown:
+playerMoveDown:
   ld a, c
-  add 2
+  add 1
+  ld c, a
+  call getSpriteTypeAtPosition
+  or a
+  ret z
+
+  ld a, c
+  sub 1
   ld c, a
   ret
 
-player1Bomb:
+playerBomb:
   ret
 
 drawUpdates:
   ret ; Not implemented!
   ld hl, updateList
 
-drawPlayer1:
-  ld hl, player1Coords
+drawPlayer:
+  ;ld hl, player1Coords
   ld b, (hl)
   inc hl
   ld c, (hl)
   push bc
-  ld de, bob
-
-  push BC
-  call coordToScrAddr
-  call blitChar
-  pop bc
-  call setAttribute
-  ld a, b
-  add a, 8
-  ld b, a
-  push bc
-  call coordToScrAddr
-  call blitChar
-  pop bc
-  call setAttribute
-  ld a, b
-  sub a, 8
-  ld b, a
-  ld a, c
-  add a, 8
-  ld c, a
-  push bc
-  call coordToScrAddr
-  call blitChar
-  pop bc
-  call setAttribute
-  ld a, b
-  add a, 8
-  ld b, a
-  push bc
-  call coordToScrAddr
-  call blitChar
-  pop bc
-  call setAttribute
-
-
-
-  pop bc
-
-  ret
-
-
-erasePlayer1:
-  ld hl, player1Coords
-  ld b, (hl)
-  inc hl
-  ld c, (hl)
-  push bc
-  ld de, empty
+  ;ld de, bob
 
   push BC
   call coordToScrAddr
@@ -392,8 +467,8 @@ erasePlayer1:
   call setAttribute
 
   pop bc
-
   ret
+
 
 drawMap:
   ld de, map
@@ -597,11 +672,46 @@ setAttribute:
   inc de
   ret
 
+
+;; Before: BC = coordinates
+;; After: A = sprite type
+getSpriteTypeAtPosition:
+  push hl
+  push bc
+  ; No idea why we need to increment the coordinates, but it works!
+  inc b
+  inc c
+  ld a, 0
+  ld h, b
+  ld b, c
+  inc b
+  djnz getSpriteTypeAtPosition_rowAddLoop
+  jp getSpriteTypeAtPosition_rowAddLoopEnd
+getSpriteTypeAtPosition_rowAddLoop:
+  add 15
+  djnz getSpriteTypeAtPosition_rowAddLoop
+getSpriteTypeAtPosition_rowAddLoopEnd:
+  add h
+  ld h, 0
+  ld l, a
+  ld bc, map
+  add hl, bc
+  ld a, (hl)
+  pop bc
+  pop hl
+
+  ret
+
 ;; Define sprites (SID = Sprite ID)
 ;; If a sprite has ID of 0, it should be background/empty
 spriteList:
   defw empty, wall, checker, brick
   
+spriteType_empty: defb 0
+spriteType_wall: defb 1
+spriteType_checker: defb 2
+spriteType_brick: defb 3
+
 ; SID 0 - empty
 empty:
   defb 0, 0, 0, 0, 0, 0, 0, 0, $47
@@ -630,10 +740,15 @@ brick:
   defb $00, $E6, $E6, $E6, $E6, $E6, $E6, $00, $42
 
 bob:
-  defb $00, $0F, $1F, $1D, $1F, $1D, $0E, $03, $41
-  defb $00, $F0, $F8, $B8, $F8, $B8, $70, $C0, $41
-  defb $01, $03, $0F, $0D, $01, $03, $02, $00, $41
-  defb $98, $F8, $E0, $80, $80, $C0, $40, $00, $41
+  defb $00, $0F, $1F, $1D, $1F, $1D, $0E, $03, $45
+  defb $00, $F0, $F8, $B8, $F8, $B8, $70, $C0, $45
+  defb $01, $03, $0F, $0D, $01, $03, $02, $00, $45
+  defb $98, $F8, $E0, $80, $80, $C0, $40, $00, $45
+greg:
+  defb $00, $0F, $1F, $1D, $1F, $1D, $0E, $03, $44
+  defb $00, $F0, $F8, $B8, $F8, $B8, $70, $C0, $44
+  defb $01, $03, $0F, $0D, $01, $03, $02, $00, $44
+  defb $98, $F8, $E0, $80, $80, $C0, $40, $00, $44
 
 map:
   defb 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
