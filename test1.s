@@ -1,46 +1,399 @@
 	org 32768
 
+init:
+	; call setupInterrupt
+  di
+  ld a, 0
+  out ($fe), a  ; set border color
+  call 3503     ; Clear screen routine in ROM
+  
+  ;call drawMap
+  call interruptSetup
+  ;jp callback ; Start loop
+  jp startScreen
+  ei
+  xor a
+  halt
+
+
+
+startScreen:
+  di
+
+  ;call newBorder
+
+  ;; BEGIN DRAW START SCREEN
+
+  ld de, brick
+  ld bc, $1010
+  call coordToScrAddr
+  call blitChar
+  ld bc, $1010
+  call setAttribute
+
+  ld bc, $1810
+  call coordToScrAddr
+  call blitChar
+  ld bc, $1810
+  call setAttribute
+
+  ld bc, $1018
+  call coordToScrAddr
+  call blitChar
+  ld bc, $1018
+  call setAttribute
+
+  ld bc, $1818
+  call coordToScrAddr
+  call blitChar
+  ld bc, $1818
+  call setAttribute
+
+  ld de, brick
+  ld bc, $2010
+  call coordToScrAddr
+  call blitChar
+  ld bc, $2010
+  call setAttribute
+
+  ;; END DRAW START SCREEN
+
+  ; Check if player wants to start game
+  call isEnterKeyPressed
+  or a
+  jp z, initLevel ; start game
+
+  ;call newBorder
+
+  ei
+  xor a
+  halt
+
+  jp startScreen
+  ret ; should never actually be taken
+
+helloString: defb 'Bomberman'
+helloString_end: equ $
+pressAnyKeyString: defb 'Press A Key'
+pressAnyKeyString_end: equ$
+
+interrupt:
+  reti
+
+interruptSetup:
+  ld hl, $fdfd
+  ld bc, interrupt
+  ld (hl), $c3
+  inc hl
+  ld (hl), c
+  inc hl
+  ld (hl), b
+
+  ld hl, $FE00
+  ld bc, $FD
+interruptSetup_lp1:
+  ld (hl), c
+  inc hl
+  djnz interruptSetup_lp1
+  ld (hl), c
+  ld a, $fe
+  ld i, a
+  im 2
+  ret
+
 ; define constants
 map_width: defb 15
 map_height: defb 11
 hasDrawnMap: defb 0
 
-player1Coords: defw 0
+player1Coords: defb 24, 24
+player1AnimCounter: defb 0
+player1CurrentDirection: defb 0 ; 0 = up, 1 = right, 2 = down, 3 = left
+
+player1KeyMap: defb 0
+player1KeysReady: defb 0
+
+player1AttrOffset: defb 0
+player1Attr: defb $41, $43
 
 brdrColor: defb 0
 
-start:
-	; call setupInterrupt
-  di
-  ld a, 2
-  out ($fe), a  ; set border color
+frameCounter: defb 0
+
+
+initLevel:
   call 3503     ; Clear screen routine in ROM
-  
-  jp callback ; Start loop
+  jp callback
 
 callback:
+  di
+  ;call newBorder
+  ld a, (frameCounter)
+  sub 50
+  call z, resetFrameCounter
+  ;call newBorder
+  call doFrame
+  ;call newBorder
+
+  ei
+  xor a
+  halt
+  jp callback
+  ret
+
+doFrame:
   ld a, (hasDrawnMap)
+  or a
   call z, drawMap
 
-  call newBorder
+  call erasePlayer1
+  ;call pollKeyboard
+  call gameLogic
 
-  jp callback
+  call drawPlayer1
+
+
+  ld a, (frameCounter)
+  inc a
+  ld (frameCounter), a
+
+  ret
+
+resetFrameCounter:
+  ld (frameCounter), a
+  ret
+
+
+pollKeyboard:
+  ;call isEnterKeyPressed
+  ;or $1E
+  ;ld (player1KeyMap), a
+  ;ret
+  ;; TODO implement actual functionality
+  ld a, $FB
+  in a, ($fe)
+  and $03 ; Get Q and W keys
+  rla
+  rla
+  rla
+  ld b, a
+  ld a, $FD
+  in a, ($fe)
+  and $07
+  or b
+  ld (player1KeyMap), a
+  ret
+
+isEnterKeyPressed:
+  LD BC,$BFFE        ; Load BC with the row port address
+  IN A,(C)           ; Read the port into the accumulator
+  AND $01            ; Mask out the key we are interested in
+  ret
 
 newBorder:
   ld a, (brdrColor)
   out ($fe), a
   inc a
-  and $07 ; only affect border color bits
+  and $03 ; only affect border color bits
   ld (brdrColor), a
   ret
 
-initLevel:
-  call drawMap
+;; BEGIN GAME LOGIC FUNCTION
+
+gameLogic:
+  ;call isEnterKeyPressed
+  ;push af
+
+  call pollKeyboard
+gameLogic_p1Keys:
+  ld a, (player1KeysReady)
+  ; out ($fe), a
+  or a
+  jp nz, gameLogic_postp1Keys
+
+  ld hl, player1Coords
+  ld b, (hl)
+  inc hl
+  ld c, (hl)
+
+  rr b
+  rr b
+  rr b
+  rr c
+  rr c
+  rr c
+  
+  ld a, (player1KeyMap)
+  ld e, a
+  bit 0, e
+  call z, player1MoveLeft
+
+  bit 1, e
+  call z, player1MoveDown
+
+  bit 2, e
+  call z, player1MoveRight
+
+  bit 3, e
+  call z, player1Bomb
+
+  bit 4, e
+  call z, player1MoveUp
+
+  rl b
+  rl b
+  rl b
+  rl c
+  rl c
+  rl c
+
+  ld (hl), c
+  dec hl
+  ld (hl), b
+
+gameLogic_postp1Keys:
+  ld a, (player1KeyMap)
+  xor $1F
+  ld (player1KeysReady), a
+
+gameLogic_p2Keys:
+
+
+gameLogic_postKeys:
+
+gameLogic_doneAnim:
+  ld a, (frameCounter)
+  and 1
+  ld (player1AttrOffset), a
+  ret
+
+gameLogic_keyboardState: defb 0
+
+;; END GAME LOGIC FUNCTION
+
+player1MoveRight:
+  ld a, b
+  add 2
+  ld b, a
+  ret
+
+player1MoveLeft:
+  ld a, b
+  sub 2
+  ld b, a
+  ret
+
+player1MoveUp:
+  ld a, c
+  sub 2
+  ld c, a
+  ret
+
+player1MoveDown:
+  ld a, c
+  add 2
+  ld c, a
+  ret
+
+player1Bomb:
   ret
 
 drawUpdates:
   ret ; Not implemented!
   ld hl, updateList
+
+drawPlayer1:
+  ld hl, player1Coords
+  ld b, (hl)
+  inc hl
+  ld c, (hl)
+  push bc
+  ld de, bob
+
+  push BC
+  call coordToScrAddr
+  call blitChar
+  pop bc
+  call setAttribute
+  ld a, b
+  add a, 8
+  ld b, a
+  push bc
+  call coordToScrAddr
+  call blitChar
+  pop bc
+  call setAttribute
+  ld a, b
+  sub a, 8
+  ld b, a
+  ld a, c
+  add a, 8
+  ld c, a
+  push bc
+  call coordToScrAddr
+  call blitChar
+  pop bc
+  call setAttribute
+  ld a, b
+  add a, 8
+  ld b, a
+  push bc
+  call coordToScrAddr
+  call blitChar
+  pop bc
+  call setAttribute
+
+
+
+  pop bc
+
+  ret
+
+
+erasePlayer1:
+  ld hl, player1Coords
+  ld b, (hl)
+  inc hl
+  ld c, (hl)
+  push bc
+  ld de, empty
+
+  push BC
+  call coordToScrAddr
+  call blitChar
+  pop bc
+  call setAttribute
+  ld a, b
+  add a, 8
+  ld b, a
+  push bc
+  call coordToScrAddr
+  call blitChar
+  pop bc
+  call setAttribute
+  ld a, b
+  sub a, 8
+  ld b, a
+  ld a, c
+  add a, 8
+  ld c, a
+  push bc
+  call coordToScrAddr
+  call blitChar
+  pop bc
+  call setAttribute
+  ld a, b
+  add a, 8
+  ld b, a
+  push bc
+  call coordToScrAddr
+  call blitChar
+  pop bc
+  call setAttribute
+
+  pop bc
+
+  ret
 
 drawMap:
   ld de, map
@@ -141,6 +494,24 @@ drawSprite:
 coordToScrAddr:
 ;On Entry: B reg = X coord,  C reg = Y coord
 ;On Exit: HL = screen address, A = pixel position
+  ;push bc
+  ;ld a, b
+  ;ld (coordToScrAddr_Xcoord), a
+  ;rl c
+  ;ld l, c
+  ;ld h, 0
+  ;ld bc, lineLookup
+  ;add hl, bc
+  ;ld b, 0
+  ;ld a, (coordToScrAddr_Xcoord)
+  ;ld c, a
+  ;rr c
+  ;rr c
+  ;rr c
+  ;add hl, bc
+  ;pop bc
+  ;ret
+  
 ; Calculate the high byte of the screen addressand store in H reg.
 	ld a,c
 	and $7
@@ -170,6 +541,8 @@ coordToScrAddr:
 	ld a,b
 	and $7
 	ret
+
+  coordToScrAddr_Xcoord: defb 0
 
 ;; DE is src
 ;; HL is dest
@@ -255,6 +628,12 @@ brick:
   defb $00, $FE, $FE, $FE, $FE, $FE, $FE, $00, $42
   defb $00, $7F, $7F, $7F, $7F, $7F, $7F, $00, $42
   defb $00, $E6, $E6, $E6, $E6, $E6, $E6, $00, $42
+
+bob:
+  defb $00, $0F, $1F, $1D, $1F, $1D, $0E, $03, $41
+  defb $00, $F0, $F8, $B8, $F8, $B8, $70, $C0, $41
+  defb $01, $03, $0F, $0D, $01, $03, $02, $00, $41
+  defb $98, $F8, $E0, $80, $80, $C0, $40, $00, $41
 
 map:
   defb 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
