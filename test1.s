@@ -16,17 +16,54 @@ init:
   halt
 
 
-
+startScreen_hasDrawn: defb 0
+startScreen_counter: defb 0
 startScreen:
   di
     
-
   ld de, map2
-  call drawMap
+  ld a, (startScreen_hasDrawn)
+  or a
+  cp a
+  call z, drawMap
+  inc a
+  ld (startScreen_hasDrawn), a
+
+  ld hl, startScreen_counter
+  inc (hl)
+
+  ld a, (hl)
+  and $1F
+  call z, newBorder
+
+  ; Check if player wants to start game
+  call isEnterKeyPressed
+  or a
+  jp z, startScreen2 ; start game
+  ;call newBorder
+
+  ei
+  xor a
+  halt
+
+  jp startScreen
+  ret ; should never actually be taken
+
+startScreen2_hasDrawn: defb 0
+startScreen2:
+  di
+    
+  ld de, map3
+  ld a, (startScreen2_hasDrawn)
+  or a
+  cp a
+  call z, drawMap
+  inc a
+  ld (startScreen_hasDrawn), a
 
   ;call newBorder
 
-  ;; BEGIN DRAW START SCREEN
+  ; BEGIN DRAW START SCREEN
 
   ;ld de, brick
   ;ld bc, $3030
@@ -41,41 +78,8 @@ startScreen:
   ; Check if player wants to start game
   call isEnterKeyPressed
   or a
-  jp z, startScreen2 ; start game
-  call newBorder
-
-  ei
-  xor a
-  halt
-
-  jp startScreen
-  ret ; should never actually be taken
-
-startScreen2:
-  di
-    
-  ld de, map3
-  call drawMap
-
-  call newBorder
-
-  ; BEGIN DRAW START SCREEN
-
-  ld de, brick
-  ld bc, $3030
-  call coordToScrAddr
-  call blitChar
-  ld bc, $3030
-  call setAttribute
-
-
-  ;; END DRAW START SCREEN
-
-  ; Check if player wants to start game
-  call isEnterKeyPressed
-  or a
   jp z, initLevel ; 
-  call newBorder
+  ;call newBorder
 
   ei
   xor a
@@ -223,10 +227,11 @@ resetFrameCounter:
 ;bomb1_size: defb 0    ; how many spaces the bomb extends to (1 byte)
 
 drawBombs:
-  ret ; Not implemented!
+  ;ret ; Not implemented!
 drawBombs_1:
   ld hl, bombs
   ld a, (hl)
+  or a
   jp z, drawBombs_2 ; no bomb here
   ld b, a
   inc hl
@@ -234,20 +239,83 @@ drawBombs_1:
   inc hl
   inc hl
   ; increase the timer of the bomb
+  ld a, $90
   inc (hl)
-  bit 5, (hl)
-  cp z, drawBombs_1_big
+  cp (hl)
+  jp z, bomb1Explode
+  bit 4, (hl)
+  jp z, drawBombs_1_big
+  push hl
 drawBombs_1_small:
   ld de, bombSmall
   call drawSprite
+  pop hl
+  inc hl
+  inc hl
   jp drawBombs_2
 drawBombs_1_big:
-  ld de, bob
+  ld de, bombBig
+  call drawSprite
+  pop hl
+  inc hl
+  inc hl
+  
+drawBombs_2:
+  ret
+  ld a, (hl)
+  or a
+  jp z, drawBombs_3 ; no bomb here
+  ld b, a
+  inc hl
+  ld c, (hl)
+  inc hl
+  inc hl
+  ; increase the timer of the bomb
+  ld a, $90
+  inc (hl)
+  cp (hl)
+  jp z, bomb2Explode
+  bit 4, (hl)
+  jp z, drawBombs_2_big
+drawBombs_2_small:
+  ld de, bombSmall
+  call drawSprite
+  jp drawBombs_3
+drawBombs_2_big:
+  ld de, bombBig
   call drawSprite
 
-drawBombs_2:
 
 drawBombs_3:
+  ld a, (hl)
+  or a
+  jp z, drawBombs_end ; no bomb here
+  ld b, a
+  inc hl
+  ld c, (hl)
+  inc hl
+  inc hl
+  ; increase the timer of the bomb
+  ld a, $90
+  inc (hl)
+  cp (hl)
+  jp z, bomb3Explode
+  bit 4, (hl)
+  jp z, drawBombs_3_big
+drawBombs_3_small:
+  ld de, bombSmall
+  call drawSprite
+  pop hl
+  inc hl
+  inc hl
+  jp drawBombs_end
+drawBombs_3_big:
+  ld de, bombBig
+  call drawSprite
+  pop hl
+  inc hl
+  inc hl
+
 
 drawBombs_end:
   ret
@@ -255,12 +323,39 @@ drawBombs_end:
 
 
 bomb1Explode:
+  ld hl, bombs
+  ld (hl), 0
+  ld de, empty
+  call drawSprite
   ret ; not implemented
 
-bomb2Explode;
+bomb2Explode:
+  ld hl, bombs
+  inc hl
+  inc hl
+  inc hl
+  inc hl
+  inc hl
+  ld (hl), 0
+  ld de, empty
+  call drawSprite
   ret ; not implemented
 
 bomb3Explode:
+  ld hl, bombs
+  inc hl
+  inc hl
+  inc hl
+  inc hl
+  inc hl
+  inc hl
+  inc hl
+  inc hl
+  inc hl
+  inc hl
+  ld (hl), 0
+  ld de, empty
+  call drawSprite
   ret ; not implemented
 
 
@@ -520,16 +615,91 @@ player1Bomb:
   cp (hl) ; check if X coord of first bomb is zero
   jp z, player1Bomb_setupBomb
 
+  inc hl
+  inc hl
+  inc hl
+  inc hl
+  inc hl
+
+  cp (hl) ; check if X coord of second bomb is zero
+  jp z, player1Bomb_setupBomb
+
+  inc hl
+  inc hl
+  inc hl
+  inc hl
+  inc hl
+
+  cp (hl) ; check if X coord of third bomb is zero
+  jp z, player1Bomb_setupBomb
+  
+  ret
   
 player1Bomb_setupBomb:
+  push bc
+  rl b
+  rr c
+  rr c
+  ld (hl), b
+  inc hl
+  ld (hl), c
+  inc (hl)
+  inc hl
+  ld (hl), 0 ; set player
+  inc hl
+  ld (hl), 0 ; set life
+  inc hl
+  ld a, (player1BombSize)
+  ld (hl), a
+  
+
+  pop bc
   ret
 
 
 player2Bomb:
+  ld a, (player2BombsMax)
+  ld hl, player2BombsOut
+  cp (hl)
+  ret z ; if no more bombs, return
+
   ld hl, bombs
+  xor a
+  cp (hl) ; check if X coord of first bomb is zero
+  jp z, player2Bomb_setupBomb
+
+  inc hl
+  inc hl
+  inc hl
+  inc hl
+  inc hl
+
+  cp (hl) ; check if X coord of second bomb is zero
+  jp z, player2Bomb_setupBomb
+
+  inc hl
+  inc hl
+  inc hl
+  inc hl
+  inc hl
+
+  cp (hl) ; check if X coord of third bomb is zero
+  jp z, player2Bomb_setupBomb
   
+  ret
   
-player2Bomb_setupBomb:  
+player2Bomb_setupBomb:
+  ld (hl), b
+  inc hl
+  ld (hl), c
+  inc hl
+  ld (hl), 0 ; set player
+  inc hl
+  ld (hl), 0 ; set life
+  inc hl
+  ld a, (player2BombSize)
+  ld (hl), a
+
   ret
 
 
@@ -897,6 +1067,12 @@ bombSmall:
   defb $0F, $0F, $0F, $07, $03, $00, $00, $00, $07
   defb $A8, $F8, $F0, $F0, $C0, $00, $00, $00, $07
 
+bombBig:
+  defb $00, $18, $2C, $77, $3B, $1F, $0F, $0F, $07
+  defb $00, $00, $E0, $F0, $F8, $FC, $3E, $2E, $07
+  defb $1F, $1F, $1F, $1F, $0F, $07, $03, $00, $07
+  defb $AE, $FE, $FC, $F8, $F8, $F0, $C0, $00, $07
+
 bob:
   defb $00, $0F, $1F, $1D, $1F, $1D, $0E, $03, $45
   defb $00, $F0, $F8, $B8, $F8, $B8, $70, $C0, $45
@@ -908,7 +1084,7 @@ greg:
   defb $01, $03, $0F, $0D, $01, $03, $02, $00, $44
   defb $98, $F8, $E0, $80, $80, $C0, $40, $00, $44
 
-map:
+maporig:
   defb 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
   defb 1, 0, 0, 3, 3, 3, 0, 3, 3, 3, 3, 3, 0, 0, 1
   defb 1, 0, 1, 3, 1, 3, 1, 3, 1, 0, 1, 3, 1, 0, 1
@@ -920,17 +1096,29 @@ map:
   defb 1, 3, 1, 3, 1, 0, 1, 0, 1, 3, 1, 3, 1, 0, 1
   defb 1, 3, 3, 3, 0, 0, 3, 3, 3, 3, 3, 3, 0, 0, 1
   defb 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+map:
+  defb 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+  defb 1, 0, 0, 3, 3, 3, 0, 3, 3, 3, 3, 3, 0, 0, 1
+  defb 1, 0, 1, 3, 1, 3, 1, 3, 1, 0, 1, 3, 1, 0, 1
+  defb 1, 0, 0, 0, 3, 3, 3, 3, 3, 0, 0, 3, 3, 0, 1
+  defb 1, 3, 1, 0, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 1
+  defb 1, 3, 3, 0, 0, 0, 0, 0, 3, 3, 0, 3, 3, 3, 1
+  defb 1, 0, 1, 3, 1, 3, 1, 0, 1, 3, 1, 3, 1, 3, 1
+  defb 1, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1
+  defb 1, 3, 1, 3, 1, 0, 1, 0, 1, 3, 1, 3, 1, 0, 1
+  defb 1, 3, 3, 3, 0, 0, 3, 3, 3, 3, 3, 3, 0, 0, 1
+  defb 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
 
 map2:
-  defb 3, 3, 3, 0, 1, 1, 1, 0, 1, 0, 1, 0, 3, 3, 3
+  defb 3, 3, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 3, 3, 0
   defb 3, 0, 3, 0, 1, 0, 1, 0, 1, 1, 1, 0, 3, 0, 3
-  defb 3, 3, 3, 0, 1, 0, 1, 0, 1, 0, 1, 0, 3, 3, 3
+  defb 3, 3, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 3, 3, 0
   defb 3, 0, 3, 0, 1, 0, 1, 0, 1, 0, 1, 0, 3, 0, 3
-  defb 3, 3, 3, 0, 1, 1, 1, 0, 1, 0, 1, 0, 3, 3, 3
+  defb 3, 3, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 3, 3, 0
   defb 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
   defb 1, 1, 1, 0, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0
   defb 1, 0, 0, 0, 3, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0
-  defb 1, 1, 1, 0, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0
+  defb 1, 1, 1, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0
   defb 1, 0, 0, 0, 3, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0
   defb 1, 1, 1, 0, 3, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0
 
