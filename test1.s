@@ -107,24 +107,41 @@ map_height: defb 11
 hasDrawnMap: defb 0
 
 player1Coords: defb 24, 24
-player1AnimCounter: defb 0
-player1CurrentDirection: defb 0 ; 0 = up, 1 = right, 2 = down, 3 = left
-
 player1KeyMap: defb 0
 player1KeysReady: defb 0
-
-player1AttrOffset: defb 0
-player1Attr: defb $41, $43
-
+player1BombSize: defb 1
+player1BombsMax: defb 1
+player1BombsOut: defb 0
 
 player2Coords: defb 200, 152
 player2KeyMap: defb 0
 player2KeysReady: defb 0
+player2BombSize: defb 1
+player2BombsMax: defb 1
+player2BombsOut: defb 0
 
 brdrColor: defb 0
 
 frameCounter: defb 0
 
+
+bombs: ; Each bomb is 5 bytes
+;; Define all the bombs
+bomb1:
+bomb1_pos: defb 0,0   ; pos of 0,0 means no bomb (2 bytes)
+bomb1_player: defb 0  ; which player owns the bomb (1 byte)
+bomb1_life: defb 0    ; how long the bomb has been on screen (1 byte)
+bomb1_size: defb 0    ; how many spaces the bomb extends to (1 byte)
+bomb2:
+bomb2_pos: defb 0,0   ; pos of 0,0 means no bomb (2 bytes)
+bomb2_player: defb 0  ; which player owns the bomb (1 byte)
+bomb2_life: defb 0    ; how long the bomb has been on screen (1 byte)
+bomb2_size: defb 0    ; how many spaces the bomb extends to (1 byte)
+bomb3:
+bomb3_pos: defb 0,0   ; pos of 0,0 means no bomb (2 bytes)
+bomb3_player: defb 0  ; which player owns the bomb (1 byte)
+bomb3_life: defb 0    ; how long the bomb has been on screen (1 byte)
+bomb3_size: defb 0    ; how many spaces the bomb extends to (1 byte)
 
 initLevel:
   call 3503     ; Clear screen routine in ROM
@@ -169,6 +186,8 @@ doFrame:
   ld de, greg
   call drawPlayer
 
+  call drawBombs
+
   ld a, (frameCounter)
   inc a
   ld (frameCounter), a
@@ -178,6 +197,57 @@ doFrame:
 resetFrameCounter:
   ld (frameCounter), a
   ret
+
+
+
+
+;bomb1_pos: defb 0,0   ; pos of 0,0 means no bomb (2 bytes)
+;bomb1_player: defb 0  ; which player owns the bomb (1 byte)
+;bomb1_life: defb 0    ; how long the bomb has been on screen (1 byte)
+;bomb1_size: defb 0    ; how many spaces the bomb extends to (1 byte)
+
+drawBombs:
+  ret ; Not implemented!
+drawBombs_1:
+  ld hl, bombs
+  ld a, (hl)
+  jp z, drawBombs_2 ; no bomb here
+  ld b, a
+  inc hl
+  ld c, (hl)
+  inc hl
+  inc hl
+  ; increase the timer of the bomb
+  inc (hl)
+  bit 5, (hl)
+  cp z, drawBombs_1_big
+drawBombs_1_small:
+  ld de, bombSmall
+  call drawSprite
+  jp drawBombs_2
+drawBombs_1_big:
+  ld de, bob
+  call drawSprite
+
+drawBombs_2:
+
+drawBombs_3:
+
+drawBombs_end:
+  ret
+
+
+
+bomb1Explode:
+  ret ; not implemented
+
+bomb2Explode;
+  ret ; not implemented
+
+bomb3Explode:
+  ret ; not implemented
+
+
 
 
 pollKeyboard:
@@ -254,6 +324,7 @@ gameLogic_p1Keys:
   
   ld a, (player1KeyMap)
   ld e, a
+  ld a, 0
   bit 0, e
   call z, playerMoveLeft
   bit 1, e
@@ -261,7 +332,7 @@ gameLogic_p1Keys:
   bit 2, e
   call z, playerMoveRight
   bit 3, e
-  call z, playerBomb
+  call z, player1Bomb
   bit 4, e
   call z, playerMoveUp
 
@@ -315,6 +386,7 @@ gameLogic_p2Keys:
   
   ld a, (player2KeyMap)
   ld e, a
+  ld a, 1
   bit 0, e
   call z, playerMoveRight
   bit 1, e
@@ -324,7 +396,7 @@ gameLogic_p2Keys:
   bit 3, e
   call z, playerMoveUp
   bit 4, e
-  call z, playerBomb
+  call z, player2Bomb
 
 
   rl b
@@ -357,9 +429,6 @@ gameLogic_postp2Keys:
 gameLogic_postKeys:
 
 gameLogic_doneAnim:
-  ld a, (frameCounter)
-  and 1
-  ld (player1AttrOffset), a
   ret
 
 gameLogic_keyboardState: defb 0
@@ -418,8 +487,37 @@ playerMoveDown:
   ld c, a
   ret
 
-playerBomb:
+
+;bomb1_pos: defb 0,0   ; pos of 0,0 means no bomb (2 bytes)
+;bomb1_player: defb 0  ; which player owns the bomb (1 byte)
+;bomb1_life: defb 0    ; how long the bomb has been on screen (1 byte)
+;bomb1_size: defb 0    ; how many spaces the bomb extends to (1 byte)
+
+player1Bomb:
+  ld a, (player1BombsMax)
+  ld hl, player1BombsOut
+  cp (hl)
+  ret z ; if no more bombs, return
+
+  ld hl, bombs
+  xor a
+  cp (hl) ; check if X coord of first bomb is zero
+  jp z, player1Bomb_setupBomb
+
+  
+player1Bomb_setupBomb:
   ret
+
+
+player2Bomb:
+  ld hl, bombs
+  
+  
+player2Bomb_setupBomb:  
+  ret
+
+
+
 
 drawUpdates:
   ret ; Not implemented!
@@ -702,6 +800,39 @@ getSpriteTypeAtPosition_rowAddLoopEnd:
 
   ret
 
+
+;; Before: BC = coordinates, A = sprite type
+setSpriteTypeAtPosition:
+  push hl
+  push bc
+  push af
+  ; No idea why we need to increment the coordinates, but it works!
+  inc b
+  inc c
+  ld a, 0
+  ld h, b
+  ld b, c
+  inc b
+  djnz getSpriteTypeAtPosition_rowAddLoop
+  jp getSpriteTypeAtPosition_rowAddLoopEnd
+setSpriteTypeAtPosition_rowAddLoop:
+  add 15
+  djnz getSpriteTypeAtPosition_rowAddLoop
+setSpriteTypeAtPosition_rowAddLoopEnd:
+  add h
+  ld h, 0
+  ld l, a
+  ld bc, map
+  add hl, bc
+  pop af
+  ;ld a, (hl)
+  ld (hl), a
+  pop bc
+  pop hl
+
+  ret
+
+
 ;; Define sprites (SID = Sprite ID)
 ;; If a sprite has ID of 0, it should be background/empty
 spriteList:
@@ -739,14 +870,20 @@ brick:
   defb $00, $7F, $7F, $7F, $7F, $7F, $7F, $00, $42
   defb $00, $E6, $E6, $E6, $E6, $E6, $E6, $00, $42
 
+bombSmall:
+  defb $00, $00, $00, $04, $0A, $1D, $0F, $0E, $07
+  defb $00, $00, $00, $00, $E0, $F0, $38, $28, $07
+  defb $0F, $0F, $0F, $07, $03, $00, $00, $00, $07
+  defb $A8, $F8, $F0, $F0, $C0, $00, $00, $00, $07
+
 bob:
   defb $00, $0F, $1F, $1D, $1F, $1D, $0E, $03, $45
   defb $00, $F0, $F8, $B8, $F8, $B8, $70, $C0, $45
   defb $01, $03, $0F, $0D, $01, $03, $02, $00, $45
   defb $98, $F8, $E0, $80, $80, $C0, $40, $00, $45
 greg:
-  defb $00, $0F, $1F, $1D, $1F, $1D, $0E, $03, $44
-  defb $00, $F0, $F8, $B8, $F8, $B8, $70, $C0, $44
+  defb $00, $0F, $1F, $1D, $1F, $1E, $0D, $03, $44
+  defb $00, $F0, $F8, $B8, $F8, $78, $B0, $C0, $44
   defb $01, $03, $0F, $0D, $01, $03, $02, $00, $44
   defb $98, $F8, $E0, $80, $80, $C0, $40, $00, $44
 
