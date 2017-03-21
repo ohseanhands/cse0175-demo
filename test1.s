@@ -19,57 +19,69 @@ init:
 
 startScreen:
   di
+    
+
+  ld de, map2
+  call drawMap
 
   ;call newBorder
 
   ;; BEGIN DRAW START SCREEN
 
-  ld de, brick
-  ld bc, $1010
-  call coordToScrAddr
-  call blitChar
-  ld bc, $1010
-  call setAttribute
+  ;ld de, brick
+  ;ld bc, $3030
+  ;call coordToScrAddr
+  ;call blitChar
+  ;ld bc, $3030
+  ;call setAttribute
 
-  ld bc, $1810
-  call coordToScrAddr
-  call blitChar
-  ld bc, $1810
-  call setAttribute
-
-  ld bc, $1018
-  call coordToScrAddr
-  call blitChar
-  ld bc, $1018
-  call setAttribute
-
-  ld bc, $1818
-  call coordToScrAddr
-  call blitChar
-  ld bc, $1818
-  call setAttribute
-
-  ld de, brick
-  ld bc, $2010
-  call coordToScrAddr
-  call blitChar
-  ld bc, $2010
-  call setAttribute
 
   ;; END DRAW START SCREEN
 
   ; Check if player wants to start game
   call isEnterKeyPressed
   or a
-  jp z, initLevel ; start game
-
-  ;call newBorder
+  jp z, startScreen2 ; start game
+  call newBorder
 
   ei
   xor a
   halt
 
   jp startScreen
+  ret ; should never actually be taken
+
+startScreen2:
+  di
+    
+  ld de, map3
+  call drawMap
+
+  call newBorder
+
+  ; BEGIN DRAW START SCREEN
+
+  ld de, brick
+  ld bc, $3030
+  call coordToScrAddr
+  call blitChar
+  ld bc, $3030
+  call setAttribute
+
+
+  ;; END DRAW START SCREEN
+
+  ; Check if player wants to start game
+  call isEnterKeyPressed
+  or a
+  jp z, initLevel ; 
+  call newBorder
+
+  ei
+  xor a
+  halt
+
+  jp startScreen2
   ret ; should never actually be taken
 
 helloString: defb 'Bomberman'
@@ -143,8 +155,12 @@ callback:
 
 doFrame:
   ld a, (hasDrawnMap)
+  ld de, map
   or a
   call z, drawMap
+  ld a, 1
+  ld (hasDrawnMap), a
+
 
   call erasePlayer1
   ;call pollKeyboard
@@ -396,7 +412,6 @@ erasePlayer1:
   ret
 
 drawMap:
-  ld de, map
   ld b, 0
   ld c, 0
 drawMap_row:
@@ -433,8 +448,6 @@ drawMap_spriteListCounterLoop_end:
   ld a, (map_height) ; map height
   cp c
   jp nz, drawMap_row
-  ld a, 1
-  ld (hasDrawnMap), a
   ret
 
 ; On Entry: B reg = X coord, C reg = Y coord, DE reg = sprite address
@@ -600,7 +613,15 @@ setAttribute:
 ;; Define sprites (SID = Sprite ID)
 ;; If a sprite has ID of 0, it should be background/empty
 spriteList:
-  defw empty, wall, checker, brick
+  defw empty, wall, checker, brick, bob
+
+;charO:
+
+; Sprite bomberman pattern 1
+  ;defb $00,$00,$00,$00,$00,$00,$00,$00,$47
+  ;defb $00,$00,$00,$00,$00,$00,$00,$00,$47
+  ;defb $00,$00,$00,$00,$00,$00,$00,$00,$47
+  ;defb $00,$00,$00,$00,$00,$00,$00,$00,$47
   
 ; SID 0 - empty
 empty:
@@ -647,6 +668,32 @@ map:
   defb 1, 3, 1, 3, 1, 0, 1, 0, 1, 3, 1, 3, 1, 0, 1
   defb 1, 3, 3, 3, 0, 0, 3, 3, 3, 3, 3, 3, 0, 0, 1
   defb 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+
+map2:
+  defb 3, 3, 3, 0, 1, 1, 1, 0, 1, 0, 1, 0, 3, 3, 3
+  defb 3, 0, 3, 0, 1, 0, 1, 0, 1, 1, 1, 0, 3, 0, 3
+  defb 3, 3, 3, 0, 1, 0, 1, 0, 1, 0, 1, 0, 3, 3, 3
+  defb 3, 0, 3, 0, 1, 0, 1, 0, 1, 0, 1, 0, 3, 0, 3
+  defb 3, 3, 3, 0, 1, 1, 1, 0, 1, 0, 1, 0, 3, 3, 3
+  defb 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  defb 1, 1, 1, 0, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0
+  defb 1, 0, 0, 0, 3, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0
+  defb 1, 1, 1, 0, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0
+  defb 1, 0, 0, 0, 3, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0
+  defb 1, 1, 1, 0, 3, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0
+
+map3:
+  defb 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  defb 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  defb 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  defb 1, 0, 1, 0, 2, 2, 2, 0, 3, 0, 0, 3, 0, 4, 0
+  defb 1, 1, 1, 0, 2, 0, 2, 0, 3, 3, 0, 3, 0, 4, 0
+  defb 1, 0, 1, 0, 2, 2, 2, 0, 3, 3, 0, 3, 0, 4, 0
+  defb 1, 0, 1, 0, 2, 0, 2, 0, 3, 0, 3, 3, 0, 0, 0
+  defb 1, 0, 1, 0, 2, 0, 2, 0, 3, 0, 3, 3, 0, 4, 0
+  defb 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  defb 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  defb 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 
 updateList:
   defb 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
